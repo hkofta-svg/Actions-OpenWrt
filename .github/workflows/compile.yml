@@ -1,5 +1,5 @@
 yaml
-name: "Build Full wstunnel for OpenWrt 25.12 (MT7628 + Extroot)"
+name: "wstunnel_OpenWrt_25_MT7628"
 
 "on":
   workflow_dispatch:

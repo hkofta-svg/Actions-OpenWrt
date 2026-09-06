@@ -1,5 +1,5 @@
 yaml
-name: "wstunnel_OpenWrt_25_MT7628"
+name: "wstunnelOpenWrt25MT7628"
 
 "on":
   workflow_dispatch:

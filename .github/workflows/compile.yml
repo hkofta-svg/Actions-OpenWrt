@@ -1,0 +1,85 @@
+yaml
+name: Build Full wstunnel for OpenWrt 25.12 (MT7628 + Extroot)
+
+on:
+  workflow_dispatch: # 支援手動點擊觸發編譯
+
+jobs:
+  build:
+    name: Build for MT7628 (mipsel_24kc)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout wstunnel source
+        uses: actions/checkout@v4
+        with:
+          repository: 'erebe/wstunnel'
+          ref: 'main'
+
+      - name: Install Rust Toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: mipsel-unknown-linux-musl
+
+      - name: Inject Optimizations into Cargo.toml
+        run: |
+          # 寫入常規最優化參數，只剪除偵錯資訊（strip），不閹割功能
+          echo "" >> Cargo.toml
+          echo "[profile.release]" >> Cargo.toml
+          echo "opt-level = \"z\"" >> Cargo.toml
+          echo "lto = true" >> Cargo.toml
+          echo "codegen-units = 1" >> Cargo.toml
+          echo "panic = \"abort\"" >> Cargo.toml
+          echo "strip = true" >> Cargo.toml
+
+      - name: Download & Extract OpenWrt 25.12 SDK
+        run: |
+          # 下載 OpenWrt 25.12 針對 MT7628 的官方編譯工具鏈
+          SDK_URL="https://openwrt.org"
+          curl -L "$SDK_URL" -o openwrt-sdk.tar.xz
+          tar -xJf openwrt-sdk.tar.xz
+          SDK_DIR=$(ls -d openwrt-sdk-*)
+          ln -s "$SDK_DIR" sdk
+
+      - name: Configure Cargo Environment
+        run: |
+          # 設定環境變數與 Cargo 配置，引導 Rust 使用 OpenWrt 官方編譯器
+          TOOLCHAIN_BIN="$GITHUB_WORKSPACE/sdk/staging_dir/toolchain-mipsel_24kc_gcc-14.2.0_musl/bin"
+          echo "$TOOLCHAIN_BIN" >> $GITHUB_PATH
+          
+          mkdir -p .cargo
+          cat <<EOF > .cargo/config.toml
+          [target.mipsel-unknown-linux-musl]
+          linker = "mipsel-openwrt-linux-musl-gcc"
+          ar = "mipsel-openwrt-linux-musl-ar"
+          EOF
+
+      - name: Build Binary (Release Mode)
+        env:
+          CC_mipsel_unknown_linux_musl: mipsel-openwrt-linux-musl-gcc
+          AR_mipsel_unknown_linux_musl: mipsel-openwrt-linux-musl-ar
+          RUSTFLAGS: "-C target-feature=+crt-static"
+        run: |
+          # 開始編譯（會靜態連結，擺脫系統庫依賴）
+          cargo build --target mipsel-unknown-linux-musl --release
+
+      - name: Process & Package Binary
+        run: |
+          mkdir -p output
+          SRC_BIN="target/mipsel-unknown-linux-musl/release/wstunnel"
+          DEST_BIN="output/wstunnel_mt7628"
+          cp "$SRC_BIN" "$DEST_BIN"
+          
+          # 使用 OpenWrt 官方工具徹底拔除符號表，進一步優化體積
+          TOOLCHAIN_BIN="$GITHUB_WORKSPACE/sdk/staging_dir/toolchain-mipsel_24kc_gcc-14.2.0_musl/bin"
+          "$TOOLCHAIN_BIN/mipsel-openwrt-linux-musl-strip" --strip-all "$DEST_BIN"
+          
+          # 打包輸出
+          cd output
+          tar -czvf wstunnel_openwrt_25.12_mt7628.tar.gz wstunnel_mt7628
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: wstunnel-mt7628-bin
+          path: output/*.tar.gz

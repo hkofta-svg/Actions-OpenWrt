@@ -19,3 +19,7 @@ steps:
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: mipsel-unknown-linux-musl   
+      - name: Inject Optimizations into Cargo.toml
+        run: |
+          echo "" >> Cargo.toml
+          echo "[profile.release]" >> Cargo.toml   

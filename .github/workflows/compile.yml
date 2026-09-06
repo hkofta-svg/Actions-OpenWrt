@@ -22,7 +22,7 @@ jobs:
       - name: Patch kio
         run: |
           KIO_DIR=$(find /root/.cargo/registry/src -type d -name "kio-*" | head -1)
-          sed -i 's/AtomicU64/AtomicUsize/g' "$KIO_DIR/src/"*.rs
+          sed -i 's/u64/usize/g' "$KIO_DIR/src/waiter.rs"
 
       - name: Build
         env:

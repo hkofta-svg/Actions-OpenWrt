@@ -1,7 +1,7 @@
 yaml
 name:wstunnel 
 
-"on":workflow_dispatch: # 支援手動點擊觸發編譯
+"on":workflow_dispatch:
 
 jobs:
   build:

@@ -1,4 +1,4 @@
-name: test
+name:name: build-full-wstunnel-for-openwrt-2512-mt7628
 
 "on":
   workflow_dispatch:

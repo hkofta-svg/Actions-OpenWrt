@@ -8,7 +8,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - run: echo hello
-steps:
       - name: Checkout wstunnel source
         uses: actions/checkout@v4
         with:
@@ -40,16 +39,15 @@ steps:
           linker = "mipsel-openwrt-linux-musl-gcc"
           ar = "mipsel-openwrt-linux-musl-ar"
           EOF   
-      - name: Build Binary (Release Mode)
+           - name: Build Binary (Release Mode)
         env:
-          CC_mipsel_unknown_linux_musl: mipsel-openwrt-linux-musl-gcc
-          AR_mipsel_unknown_linux_musl: mipsel-openwrt-linux-musl-ar
           RUSTFLAGS: "-C target-feature=+crt-static"
         run: |
-          cargo build --target mipsel-unknown-linux-musl --release   
-                - name: Process & Package Binary
+          cargo build --target mipsel-unknown-linux-musl --release
+
+      - name: Process & Package Binary              # ← 6 個空格，和其他 - name 齊平
         run: |
-          mkdir -p output
+          mkdir -p output   
           SRC_BIN="target/mipsel-unknown-linux-musl/release/wstunnel"
           DEST_BIN="output/wstunnel_mt7628"
           cp "$SRC_BIN" "$DEST_BIN"

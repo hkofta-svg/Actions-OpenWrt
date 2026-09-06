@@ -1,8 +1,8 @@
 yaml
 name:wstunnel 
 
-"on":workflow_dispatch:
-
+"on":
+  workflow_dispatch:   
 jobs:
   build:
     name: Build for MT7628 (mipsel_24kc)

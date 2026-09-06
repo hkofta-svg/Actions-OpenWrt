@@ -1,5 +1,5 @@
 yaml
-name: wstunnel MT7628 for OpenWrt 25.12 
+name:wstunnel 
 
 "on":
   workflow_dispatch: # 支援手動點擊觸發編譯

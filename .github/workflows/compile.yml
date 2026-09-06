@@ -30,3 +30,13 @@ steps:
           tar -xJf openwrt-sdk.tar.xz
           SDK_DIR=$(ls -d openwrt-sdk-*)
           ln -s "$SDK_DIR" sdk   
+      - name: Configure Cargo Environment
+        run: |
+          TOOLCHAIN_BIN="$GITHUB_WORKSPACE/sdk/staging_dir/toolchain-mipsel_24kc_gcc-14.2.0_musl/bin"
+          echo "$TOOLCHAIN_BIN" >> $GITHUB_PATH
+          mkdir -p .cargo
+          cat <<EOF > .cargo/config.toml
+          [target.mipsel-unknown-linux-musl]
+          linker = "mipsel-openwrt-linux-musl-gcc"
+          ar = "mipsel-openwrt-linux-musl-ar"
+          EOF   

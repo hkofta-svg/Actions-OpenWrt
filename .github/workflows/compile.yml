@@ -24,6 +24,10 @@ jobs:
           KIO_DIR=$(find /root/.cargo/registry/src -type d -name "kio-*" | head -1)
           sed -i 's/AtomicU64/AtomicUsize/g; s/u64/usize/g' "$KIO_DIR/src/waiter.rs"
 
+      - name: Configure Cargo profile
+        run: |
+          printf '\n[profile.release]\npanic = "abort"\n' >> Cargo.toml
+
       - name: Build
         env:
           RUSTFLAGS: "-C target-feature=+crt-static"

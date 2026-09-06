@@ -47,4 +47,19 @@ steps:
           RUSTFLAGS: "-C target-feature=+crt-static"
         run: |
           cargo build --target mipsel-unknown-linux-musl --release   
-          
+                - name: Process & Package Binary
+        run: |
+          mkdir -p output
+          SRC_BIN="target/mipsel-unknown-linux-musl/release/wstunnel"
+          DEST_BIN="output/wstunnel_mt7628"
+          cp "$SRC_BIN" "$DEST_BIN"
+          TOOLCHAIN_BIN="$GITHUB_WORKSPACE/sdk/staging_dir/toolchain-mipsel_24kc_gcc-14.2.0_musl/bin"
+          "$TOOLCHAIN_BIN/mipsel-openwrt-linux-musl-strip" --strip-all "$DEST_BIN"
+          cd output
+          tar -czvf wstunnel_openwrt_25.12_mt7628.tar.gz wstunnel_mt7628
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: wstunnel-mt7628-bin
+          path: output/*.tar.gz   

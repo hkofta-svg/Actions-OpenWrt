@@ -1,7 +1,7 @@
 yaml
 name:"wstunnelOpenWrt25MT7628"
 
-on :
+"on" :
   workflow_dispatch:
 
 jobs:

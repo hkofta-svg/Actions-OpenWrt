@@ -8,3 +8,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - run: echo hello
+steps:
+      - name: Checkout wstunnel source
+        uses: actions/checkout@v4
+        with:
+          repository: 'erebe/wstunnel'
+          ref: 'main'
+      - run: echo hello

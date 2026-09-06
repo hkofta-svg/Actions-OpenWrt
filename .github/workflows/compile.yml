@@ -28,7 +28,7 @@ jobs:
         env:
           RUSTFLAGS: "-C target-feature=+crt-static"
         run: |
-          cargo build --target mipsel-unknown-linux-musl --release --config 'profile.release.panic="unwind"'
+          cargo build --target mipsel-unknown-linux-musl --release --config 'profile.release.panic="unwind"' --config 'profile.release.lto=false'
 
       - name: Package
         run: |

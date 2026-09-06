@@ -23,3 +23,10 @@ steps:
         run: |
           echo "" >> Cargo.toml
           echo "[profile.release]" >> Cargo.toml   
+      - name: Download & Extract OpenWrt 25.12 SDK
+        run: |
+          SDK_URL="https://openwrt.org"
+          curl -L "$SDK_URL" -o openwrt-sdk.tar.xz
+          tar -xJf openwrt-sdk.tar.xz
+          SDK_DIR=$(ls -d openwrt-sdk-*)
+          ln -s "$SDK_DIR" sdk   

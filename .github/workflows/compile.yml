@@ -40,3 +40,11 @@ steps:
           linker = "mipsel-openwrt-linux-musl-gcc"
           ar = "mipsel-openwrt-linux-musl-ar"
           EOF   
+      - name: Build Binary (Release Mode)
+        env:
+          CC_mipsel_unknown_linux_musl: mipsel-openwrt-linux-musl-gcc
+          AR_mipsel_unknown_linux_musl: mipsel-openwrt-linux-musl-ar
+          RUSTFLAGS: "-C target-feature=+crt-static"
+        run: |
+          cargo build --target mipsel-unknown-linux-musl --release   
+          

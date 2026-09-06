@@ -15,3 +15,7 @@ steps:
           repository: 'erebe/wstunnel'
           ref: 'main'
       - run: echo hello
+      - name: Install Rust Toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: mipsel-unknown-linux-musl   

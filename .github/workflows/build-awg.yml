@@ -16,20 +16,35 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y build-essential clang flex bison g++ gawk gcc-multilib g++-multilib \
-            gettext git libncurses5-dev libssl-dev python3 python3-setuptools rsync unzip zlib1g-dev file wget jq zstd
+            gettext git libncurses5-dev libssl-dev python3 python3-setuptools rsync unzip zlib1g-dev file wget jq zstd curl
 
       - name: Get OpenWrt SDK & Setup
         run: |
-          # 1. Download OpenWrt 25.12 SDK for Qualcomm IPQ60xx (.tar.zst format)
-          # Note: If you are on a specific minor release like 25.12.4, change the version number in the URL below.
-          SDK_URL="https://openwrt.org"
+          # 1. Define the base target release directory
+          # Change "25.12.0" below if you are using a newer point version (e.g., 25.12.2)
+          OW_VERSION="25.12.0"
+          BASE_URL="https://openwrt.org{OW_VERSION}/targets/qualcommax/ipq60xx/"
           
-          echo "Downloading SDK from $SDK_URL..."
+          echo "Scanning OpenWrt directory to locate the SDK filename..."
+          
+          # Dynamically parse the index page to get the exact SDK filename (avoids hardcoded GCC version mismatches)
+          SDK_FILENAME=$(curl -sL "$BASE_URL" | grep -oE 'openwrt-sdk-[0-9a-zA-Z._-]+-qualcommax-ipq60xx_[a-zA-Z0-9._-]+\.tar\.zst' | head -n 1)
+          
+          if [ -z "$SDK_FILENAME" ]; then
+            echo "ERROR: Could not find an SDK file in $BASE_URL. Please verify the OpenWrt release version."
+            exit 1
+          fi
+          
+          SDK_URL="${BASE_URL}${SDK_FILENAME}"
+          echo "Found SDK: $SDK_FILENAME"
+          echo "Downloading from $SDK_URL..."
+          
+          # Download the archive
           wget -q --show-progress -O sdk.tar.zst "$SDK_URL"
           
-          # Check if the downloaded file is a valid Zstandard file (not a 404 HTML page)
+          # Double check if the downloaded file is a valid compressed Zstandard archive
           if ! file sdk.tar.zst | grep -q "Zstandard"; then
-            echo "ERROR: Downloaded file is invalid or server returned a 404 page. Please verify your exact OpenWrt 25.12.X version."
+            echo "ERROR: Download file is corrupt or invalid. Server returned an alternative document."
             exit 1
           fi
           

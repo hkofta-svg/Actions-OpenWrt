@@ -1,0 +1,58 @@
+name: Build AmneziaWG for OpenWrt
+
+on:
+  workflow_dispatch: # 支援手動觸發
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Prepare Environment
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential clang flex bison gawk gettext git libncurses5-dev libssl-dev python3-distutils rsync unzip zlib1g-dev file wget
+
+      - name: Download OpenWrt SDK
+        run: |
+          # 根據 OpenWrt 25.12.1 的 ipq60xx 下載官方對應的 SDK
+          # 請根據你的具體子架構調整 URL（此處以 ipq60xx/generic 為例）
+          wget https://openwrt.org
+          tar -xJf openwrt-sdk-*.tar.xz
+          mv openwrt-sdk-* openwrt-sdk
+
+      - name: Update and Install Feeds
+        run: |
+          cd openwrt-sdk
+          ./scripts/feeds update -a
+          ./scripts/feeds install -a
+
+      - name: Add AmneziaWG Packages
+        run: |
+          cd openwrt-sdk
+          # 引入 amneziawg-openwrt 原始碼
+          git clone https://github.com package/amneziawg-openwrt
+          
+          # 如果需要鎖定 AmneziaWG 3.1 版本，可以在此處切換其 tag/commit 
+          # cd package/amneziawg-openwrt && git checkout <3.1_tag_or_commit> && cd ../..
+
+      - name: Configure and Compile
+        run: |
+          cd openwrt-sdk
+          # 選擇編譯套件
+          make defconfig
+          # 將 AmneziaWG 相關套件與內核模組設為編譯模組 (m)
+          echo "CONFIG_PACKAGE_kmod-amneziawg=m" >> .config
+          echo "CONFIG_PACKAGE_amneziawg-tools=m" >> .config
+          echo "CONFIG_PACKAGE_luci-proto-amneziawg=m" >> .config
+          
+          # 開始編譯 (使用單執行緒避免報錯，方便排查)
+          make package/amneziawg-openwrt/compile V=s -j1
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: amneziawg-ipq60xx
+          path: openwrt-sdk/bin/targets/ipq60xx/generic/packages/*.apk

@@ -1,7 +1,7 @@
 name: Build AmneziaWG for IPQ6010 (OpenWrt 25.12)
 
 on:
-  workflow_dispatch: # 支援手動觸發編譯
+  workflow_dispatch: # Allows manual trigger from the GitHub Actions tab
 
 jobs:
   build:
@@ -9,64 +9,63 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
+      - name: Checkout Code
         uses: actions/checkout@v4
 
       - name: Setup Build Environment
         run: |
           sudo apt-get update
           sudo apt-get install -y build-essential clang flex bison g++ gawk gcc-multilib g++-multilib \
-            gettext git libncurses5-dev libssl-dev python3-distutils rsync unzip zlib1g-dev file wget jq
+            gettext git libncurses5-dev libssl-dev python3 python3-setuptools rsync unzip zlib1g-dev file wget jq
 
       - name: Get OpenWrt SDK & Setup
         run: |
-          # 1. 下載專門給高通 IPQ60xx / IPQ6010 的 25.12.0 SDK
+          # 1. Download OpenWrt 25.12.0 SDK for Qualcomm IPQ60xx
           SDK_URL="https://openwrt.org"
           
           wget -qO- "$SDK_URL" | tar -xJ --strip-components=1
           
-          # 2. 更新與安裝基礎 Feeds
+          # 2. Update and install standard feeds
           ./scripts/feeds update -a
           ./scripts/feeds install -a
 
       - name: Add AmneziaWG Source Feed
         run: |
-          # 引入官方維護的 AmneziaWG OpenWrt 套件源 (切換至對應的 3.1 版本)
+          # Add the AmneziaWG OpenWrt package source feed (v3.1 branch)
           echo "src-git amneziawg https://github.com" >> feeds.conf.default
           ./scripts/feeds update amneziawg
           ./scripts/feeds install -a -p amneziawg
 
       - name: Mock & Lock Kernel Version (6.18.38)
         run: |
-          # 為了強制讓編譯出來的 kmod 完全吻合核心 6.18.38，將 SDK 的內核設定直接修改
+          # Force the SDK kernel configuration to match your exact kernel target (6.18.38)
           if [ -f include/kernel-6.18 ]; then
             sed -i 's/LINUX_VERSION:=.*/LINUX_VERSION:=6.18.38/g' include/kernel-6.18
           else
-            # 如果 25.12 分支內核配置文件命名為其他（例如包含具體小版本），則用萬用字元修改
             sed -i 's/LINUX_VERSION:=.*/LINUX_VERSION:=6.18.38/g' include/kernel-*
           fi
 
       - name: Configure Packages
         run: |
-          # 生成預設設定檔
+          # Generate default configurations
           make defconfig
           
-          # 啟用 AmneziaWG 核心模組與相關組件（m 代表編譯為獨立套件包）
+          # Enable AmneziaWG core module and utilities (m = compile as standalone package)
           echo "CONFIG_PACKAGE_kmod-amneziawg=m" >> .config
           echo "CONFIG_PACKAGE_amneziawg-tools=m" >> .config
           echo "CONFIG_PACKAGE_luci-app-amneziawg=m" >> .config
           
-          # 再次檢查與修正設定檔平衡
+          # Re-run defconfig to handle structural dependencies
           make defconfig
 
       - name: Compile AmneziaWG
         run: |
-          # 單獨編譯 AmneziaWG 套件，V=s 輸出詳細編譯日誌
+          # Compile the AmneziaWG package with verbose error logging (V=s)
           make package/amneziawg-openwrt/compile V=s -j$(nproc)
 
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: amneziawg-ipq6010-apk-packages
-          # 25.12 產出的包會放在 bin/packages/aarch64_cortex-a53/amneziawg/ 目錄下
+          # Target directory containing the compiled .apk packages for aarch64_cortex-a53
           path: bin/packages/*/amneziawg/

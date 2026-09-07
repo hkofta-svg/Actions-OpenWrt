@@ -20,16 +20,11 @@ jobs:
 
       - name: Get OpenWrt SDK & Setup
         run: |
-          # 1. Directly point to the absolute, verified OpenWrt 25.12 release target directory
-          # Using 25.12.1 which features stable GCC 14.3.0 toolchain distributions
-          SDK_URL="https://openwrt.org"
+          # 1. Download OpenWrt 25.12 SDK for Qualcomm IPQ60xx
+          # Switched to curl with strict asset redirection handling to prevent index overrides
+          curl -sSL -o sdk.tar.zst "https://openwrt.org"
           
-          echo "Downloading SDK from absolute endpoint: $SDK_URL"
-          
-          # Download using wget with error enforcement codes enabled
-          wget --retry-connrefused --waitretry=5 --read-timeout=20 --timeout=15 -q --show-progress -O sdk.tar.zst "$SDK_URL"
-          
-          # Double check if the downloaded file is a valid compressed Zstandard archive
+          # Verify that the downloaded file is a valid compressed Zstandard archive
           if ! file sdk.tar.zst | grep -q "Zstandard"; then
             echo "ERROR: Download file failed or is corrupted. Server outputted an unreadable document."
             exit 1

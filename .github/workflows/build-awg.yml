@@ -20,38 +20,38 @@ jobs:
 
       - name: Get OpenWrt SDK & Setup
         run: |
-          # 1. Define the base target release directory
-          OW_VERSION="25.12.5"
-          BASE_URL="https://openwrt.org{OW_VERSION}/targets/qualcommax/ipq60xx/"
+          # 1. Base download path for the stable 25.12.5 release
+          BASE_URL="https://openwrt.org"
           
           echo "Scanning OpenWrt directory to locate the SDK filename..."
           
-          # Dynamically parse the index page to get the exact SDK filename
+          # Dynamically extract the exact filename from the server's file listing page
           SDK_FILENAME=$(curl -sL "$BASE_URL" | grep -oE 'openwrt-sdk-[0-9a-zA-Z._-]+-qualcommax-ipq60xx_[a-zA-Z0-9._-]+\.tar\.zst' | head -n 1)
           
+          # Fallback check: If the directory listing scan fails, use the expected standard production filename
           if [ -z "$SDK_FILENAME" ]; then
-            echo "ERROR: Could not find an SDK file in $BASE_URL. Please verify the OpenWrt release version."
-            exit 1
+            echo "Warning: Live directory scan missed. Forcing fallback production filename mapping..."
+            SDK_FILENAME="openwrt-sdk-25.12.5-qualcommax-ipq60xx_gcc-14.2.0_musl.Linux-x86_64.tar.zst"
           fi
           
           SDK_URL="${BASE_URL}${SDK_FILENAME}"
-          echo "Found SDK: $SDK_FILENAME"
+          echo "Target SDK Selected: $SDK_FILENAME"
           echo "Downloading from $SDK_URL..."
           
-          # Download the archive
+          # Fetch package from servers
           wget -q --show-progress -O sdk.tar.zst "$SDK_URL"
           
-          # Double check if the downloaded file is a valid compressed Zstandard archive
+          # Verify that the server didn't redirect or return a corrupted file
           if ! file sdk.tar.zst | grep -q "Zstandard"; then
-            echo "ERROR: Download file is corrupt or invalid. Server returned an alternative document."
+            echo "ERROR: Download file format is incorrect. Server failed to provide a valid compressed Zstd archive."
             exit 1
           fi
           
-          # Unpack the Zstandard archive
+          # Unpack the archive into the root execution workspace
           tar -I zstd -xf sdk.tar.zst --strip-components=1
           rm sdk.tar.zst
           
-          # 2. Update and install standard feeds
+          # 2. Update and build target definitions
           ./scripts/feeds update -a
           ./scripts/feeds install -a
 
@@ -73,25 +73,25 @@ jobs:
 
       - name: Configure Packages
         run: |
-          # Generate default configurations
+          # Generate base configurations
           make defconfig
           
-          # Enable AmneziaWG core module and utilities (m = compile as standalone package)
+          # Force standalone module targets for AmneziaWG packages
           echo "CONFIG_PACKAGE_kmod-amneziawg=m" >> .config
           echo "CONFIG_PACKAGE_amneziawg-tools=m" >> .config
           echo "CONFIG_PACKAGE_luci-app-amneziawg=m" >> .config
           
-          # Re-run defconfig to handle structural dependencies
+          # Refresh tool configuration matrix
           make defconfig
 
       - name: Compile AmneziaWG
         run: |
-          # Compile the AmneziaWG package with verbose error logging (V=s)
+          # Build target packages with verbose stdout stream
           make package/amneziawg-openwrt/compile V=s -j$(nproc)
 
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: amneziawg-ipq6010-apk-packages
-          # Target directory containing the compiled .apk packages for aarch64_cortex-a53
+          # Save compiled components (.apk binary objects)
           path: bin/packages/*/amneziawg/

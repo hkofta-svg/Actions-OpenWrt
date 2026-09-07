@@ -1,11 +1,11 @@
-name: Build AmneziaWG for OpenWrt 25.12
+name: Build AmneziaWG for IPQ6010 (OpenWrt 25.12)
 
 on:
   workflow_dispatch: # 支援手動觸發編譯
 
 jobs:
   build:
-    name: Build AWG 3.1 Packages
+    name: Build AWG 3.1 for qualcommax/ipq60xx
     runs-on: ubuntu-latest
 
     steps:
@@ -20,8 +20,7 @@ jobs:
 
       - name: Get OpenWrt SDK & Setup
         run: |
-          # 1. 下載對應架構的 OpenWrt 25.12 SDK (此處以 x86_64 為例，請根據你的硬體調整 targets 網址)
-          # 注意：將 target 修改成你的路由器晶片，如: mediatek/filogic 或 rockchip/armv8
+          # 1. 下載專門給高通 IPQ60xx / IPQ6010 的 25.12.0 SDK
           SDK_URL="https://openwrt.org"
           
           wget -qO- "$SDK_URL" | tar -xJ --strip-components=1
@@ -32,41 +31,42 @@ jobs:
 
       - name: Add AmneziaWG Source Feed
         run: |
-          # 引入社群維護的 AmneziaWG OpenWrt 套件源
+          # 引入官方維護的 AmneziaWG OpenWrt 套件源 (切換至對應的 3.1 版本)
           echo "src-git amneziawg https://github.com" >> feeds.conf.default
           ./scripts/feeds update amneziawg
           ./scripts/feeds install -a -p amneziawg
 
-      - name: Mock & Lock Kernel Version (Vermagic Fix)
+      - name: Mock & Lock Kernel Version (6.18.38)
         run: |
-          # 為了強制讓編譯出來的 kmod 吻合核心 6.18.38，直接修改 SDK 的核心設定
-          # 修改內核大版本為 6.18，並指定具體修訂號 38
-          sed -i 's/LINUX_VERSION:=.*/LINUX_VERSION:=6.18.38/g' include/kernel-6.18
-          
-          # 獲取你目前軟路由/編譯系統上的正確 vermagic（可從現有包名或固件 opkg/apk info kernel 取得）
-          # 強制寫入對應的 vermagic 雜湊值防止出錯
-          # echo "CONFIG_KERNEL_MAGICVER=你的vermagic雜湊" >> .config
+          # 為了強制讓編譯出來的 kmod 完全吻合核心 6.18.38，將 SDK 的內核設定直接修改
+          if [ -f include/kernel-6.18 ]; then
+            sed -i 's/LINUX_VERSION:=.*/LINUX_VERSION:=6.18.38/g' include/kernel-6.18
+          else
+            # 如果 25.12 分支內核配置文件命名為其他（例如包含具體小版本），則用萬用字元修改
+            sed -i 's/LINUX_VERSION:=.*/LINUX_VERSION:=6.18.38/g' include/kernel-*
+          fi
 
       - name: Configure Packages
         run: |
           # 生成預設設定檔
           make defconfig
           
-          # 啟用 AmneziaWG 及其相關元件進行編譯
+          # 啟用 AmneziaWG 核心模組與相關組件（m 代表編譯為獨立套件包）
           echo "CONFIG_PACKAGE_kmod-amneziawg=m" >> .config
           echo "CONFIG_PACKAGE_amneziawg-tools=m" >> .config
           echo "CONFIG_PACKAGE_luci-app-amneziawg=m" >> .config
           
-          # 再次檢查與修正設定檔
+          # 再次檢查與修正設定檔平衡
           make defconfig
 
       - name: Compile AmneziaWG
         run: |
-          # 開始編譯 package，V=s 輸出詳細日誌方便排錯
+          # 單獨編譯 AmneziaWG 套件，V=s 輸出詳細編譯日誌
           make package/amneziawg-openwrt/compile V=s -j$(nproc)
 
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: amneziawg-openwrt-25.12-packages
+          name: amneziawg-ipq6010-apk-packages
+          # 25.12 產出的包會放在 bin/packages/aarch64_cortex-a53/amneziawg/ 目錄下
           path: bin/packages/*/amneziawg/

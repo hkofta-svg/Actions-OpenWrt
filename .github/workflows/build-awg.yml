@@ -1,4 +1,4 @@
-name: Build AmneziaWG for IPQ6010 (OpenWrt 25.12)
+name: Build AmneziaWG 3.1 for IPQ6010 (OpenWrt 25.12)
 
 on:
   workflow_dispatch: # Allows manual trigger from the GitHub Actions tab

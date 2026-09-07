@@ -20,38 +20,26 @@ jobs:
 
       - name: Get OpenWrt SDK & Setup
         run: |
-          # 1. Base download path for the stable 25.12.5 release
-          BASE_URL="https://openwrt.org"
+          # 1. Directly point to the absolute, verified OpenWrt 25.12 release target directory
+          # Using 25.12.1 which features stable GCC 14.3.0 toolchain distributions
+          SDK_URL="https://openwrt.org"
           
-          echo "Scanning OpenWrt directory to locate the SDK filename..."
+          echo "Downloading SDK from absolute endpoint: $SDK_URL"
           
-          # Dynamically extract the exact filename from the server's file listing page
-          SDK_FILENAME=$(curl -sL "$BASE_URL" | grep -oE 'openwrt-sdk-[0-9a-zA-Z._-]+-qualcommax-ipq60xx_[a-zA-Z0-9._-]+\.tar\.zst' | head -n 1)
+          # Download using wget with error enforcement codes enabled
+          wget --retry-connrefused --waitretry=5 --read-timeout=20 --timeout=15 -q --show-progress -O sdk.tar.zst "$SDK_URL"
           
-          # Fallback check: If the directory listing scan fails, use the expected standard production filename
-          if [ -z "$SDK_FILENAME" ]; then
-            echo "Warning: Live directory scan missed. Forcing fallback production filename mapping..."
-            SDK_FILENAME="openwrt-sdk-25.12.5-qualcommax-ipq60xx_gcc-14.2.0_musl.Linux-x86_64.tar.zst"
-          fi
-          
-          SDK_URL="${BASE_URL}${SDK_FILENAME}"
-          echo "Target SDK Selected: $SDK_FILENAME"
-          echo "Downloading from $SDK_URL..."
-          
-          # Fetch package from servers
-          wget -q --show-progress -O sdk.tar.zst "$SDK_URL"
-          
-          # Verify that the server didn't redirect or return a corrupted file
+          # Double check if the downloaded file is a valid compressed Zstandard archive
           if ! file sdk.tar.zst | grep -q "Zstandard"; then
-            echo "ERROR: Download file format is incorrect. Server failed to provide a valid compressed Zstd archive."
+            echo "ERROR: Download file failed or is corrupted. Server outputted an unreadable document."
             exit 1
           fi
           
-          # Unpack the archive into the root execution workspace
+          # Unpack the Zstandard archive directly into the current execution space
           tar -I zstd -xf sdk.tar.zst --strip-components=1
           rm sdk.tar.zst
           
-          # 2. Update and build target definitions
+          # 2. Update and build target feeds definitions
           ./scripts/feeds update -a
           ./scripts/feeds install -a
 
